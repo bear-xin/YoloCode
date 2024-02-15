@@ -118,44 +118,93 @@ def run(
 
     # Dataloader
     bs = 1  # batch_size
+    # 视频流数据集
     if webcam:
+        # 检查是否应该显示图像，具体实现可能涉及图像显示库的调用和配置
         view_img = check_imshow(warn=True)
+        # 使用 LoadStreams 类加载视频流数据集。该类的具体实现可能涉及视频流的读取和处理
         dataset = LoadStreams(source, img_size=imgsz, stride=stride, auto=pt, vid_stride=vid_stride)
+        # 将批量大小设置为数据集中的样本数
         bs = len(dataset)
+    # 屏幕截图数据集
     elif screenshot:
+        # 使用 LoadScreenshots 类加载屏幕截图数据集。该类的具体实现可能涉及屏幕截图的读取和处理
         dataset = LoadScreenshots(source, img_size=imgsz, stride=stride, auto=pt)
+    # 除了以上情况的其他情况
     else:
+        # 使用 LoadImages 类加载图像数据集。该类的具体实现可能涉及图像的读取和处理。
         dataset = LoadImages(source, img_size=imgsz, stride=stride, auto=pt, vid_stride=vid_stride)
+    # 初始化 vid_path 和 vid_writer 列表，长度为批量大小，并将每个元素初始化为 None。
+    # 用于存储视频路径和视频写入器对象。
     vid_path, vid_writer = [None] * bs, [None] * bs
 
     # Run inference
+
+    # 这是一个模型预热的方法调用。它将输入图像的大小 imgsz 作为参数传递给模型的 warmup() 方法。具体的预热操作可能涉及模型参数初始化、缓存填充等操作，以提高模型在后续推理过程中的性能。
     model.warmup(imgsz=(1 if pt or model.triton else bs, 3, *imgsz))  # warmup
+    # seen 记录已处理的图像数量，windows 用于存储图像窗口信息，dt 是一个元组，包含了三个 Profile 对象，用于记录推理时间。
     seen, windows, dt = 0, [], (Profile(device=device), Profile(device=device), Profile(device=device))
+    # 遍历数据集中的每个样本
+    # path 是图像路径，im 是图像数据，im0s 是原始图像数据，vid_cap 是视频捕获对象，s 是图像缩放比例。
     for path, im, im0s, vid_cap, s in dataset:
+
+        # 使用 dt[0] 对象记录下面代码块的执行时间。
         with dt[0]:
+            # 将图像数据转换为 PyTorch 张量，并将其移动到模型所在的设备。
             im = torch.from_numpy(im).to(model.device)
+            # 如果模型使用 FP16（半精度浮点数）进行推理，则将图像张量转换为半精度浮点数类型；否则，转换为单精度浮点数类型。??
             im = im.half() if model.fp16 else im.float()  # uint8 to fp16/32
+            # 将图像张量的值从 0-255 范围归一化到 0.0-1.0 范围。
             im /= 255  # 0 - 255 to 0.0 - 1.0
+            # 如果图像张量的维度为 3（缺少批次维度），则在第一维度上添加一个批次维度。
+            # 如(height, width, channels)缺少批次维度，为了在推理过程中处理这样的张量，需要将其扩展为(1, height, width, channels)的形状，其中1是批次维度。
             if len(im.shape) == 3:
                 im = im[None]  # expand for batch dim
+            # 如果模型使用 XML（多尺度推理）并且图像张量的批次维度大于 1，则将图像张量拆分成多个子张量。这可能涉及将多个尺度的图像作为独立的批次进行推理。
             if model.xml and im.shape[0] > 1:
+                # torch.chunk(im, im.shape[0], 0) 的含义是将 im 沿着批次维度（第0维）进行分块，每个块的大小为 batch_size。
+                # 返回的结果是一个包含多个子张量的列表，每个子张量的形状为 (1, height, width, channels)
                 ims = torch.chunk(im, im.shape[0], 0)
 
         # Inference
+        # 使用 dt[1] 对象记录下面代码块的执行时间。
         with dt[1]:
+            # 根据 visualize 变量的值，确定是否需要保存可视化结果。
+            # increment_path() 函数用于生成一个唯一的文件路径，这个路径将用于保存可视化结果。
+            # 如果 visualize 为 True，则将生成的路径赋值给 visualize 变量；否则，将 False 赋值给 visualize 变量。
             visualize = increment_path(save_dir / Path(path).stem, mkdir=True) if visualize else False
+            """根据模型是否使用了多尺度推理（model.xml）以及图像张量的批次维度是否大于1（im.shape[0] > 1），分两种情况对预测结果进行处理"""
+            # 如果模型使用了多尺度推理并且图像张量的批次维度大于1
             if model.xml and im.shape[0] > 1:
+                # 有多个尺度的图像需要处理，那么需要对每个子图像进行推理，并将预测结果存储在 pred 变量中。
                 pred = None
+                # 遍历每个子图像
                 for image in ims:
+                    # 如果 pred 为 None，说明是第一个子图像，将模型的预测结果添加到 pred 中；
                     if pred is None:
+                        # augment 和 visualize 是可选的参数，用于指定是否进行数据增强和可视化。
+                        # unsqueeze() 函数用于在指定的维度上增加一个维度。将单个图像的预测结果从 (num_predictions, num_attributes) 的形状扩展为 (1, num_predictions, num_attributes) 的形状。
                         pred = model(image, augment=augment, visualize=visualize).unsqueeze(0)
                     else:
+                        # 首先，model(image, augment=augment, visualize=visualize) 是调用模型对新的图像 image 进行推理的过程，得到新的预测结果。
+                        # torch.cat() 函数用于在指定的维度上拼接张量。在这里，使用 dim=0 表示在第0维（批次维度）上进行拼接。
                         pred = torch.cat((pred, model(image, augment=augment, visualize=visualize).unsqueeze(0)), dim=0)
+                # 保持数据结构的一致性，无论是多个尺度的图像还是单个图像，pred 都是一个列表，第一个元素是预测结果张量，第二个元素是 None。????
                 pred = [pred, None]
             else:
                 pred = model(im, augment=augment, visualize=visualize)
+
         # NMS
+        # 使用非最大抑制（non-maximum suppression, NMS）对预测结果进行处理，以过滤掉重叠的边界框并选择置信度最高的边界框。
+        # 使用 dt[2] 对象记录下面代码块的执行时间。
         with dt[2]:
+            # non_max_suppression(pred, conf_thres, iou_thres, classes, agnostic_nms, max_det=max_det)函数 用于对预测结果 pred 进行非最大抑制。
+            # pred，形状为 (num_scales, num_predictions, num_attributes)，其中 num_scales 表示尺度的数量，num_predictions 表示每个尺度的预测数量，num_attributes 表示每个预测的属性数量。
+            # conf_thres：置信度阈值，用于过滤掉置信度低于阈值的预测结果。
+            # iou_thres：IoU（交并比）阈值，用于合并重叠的边界框。
+            # classes：类别列表，用于指定感兴趣的类别。
+            # agnostic_nms：布尔值，指示是否使用类别不可知的非最大抑制。
+            # max_det：最大检测数量，用于限制输出的边界框数量。
             pred = non_max_suppression(pred, conf_thres, iou_thres, classes, agnostic_nms, max_det=max_det)
 
         # Second-stage classifier (optional)
@@ -165,12 +214,20 @@ def run(
         csv_path = save_dir / "predictions.csv"
 
         # Create or append to the CSV file
+        # 用于将预测结果写入 CSV 文件的函数。
+        # image_name、prediction 和 confidence，用于记录图像名称、预测结果和置信度。
         def write_to_csv(image_name, prediction, confidence):
             data = {"Image Name": image_name, "Prediction": prediction, "Confidence": confidence}
+            # 打开 CSV 文件，使用 mode="a" 表示以追加模式打开文件。
             with open(csv_path, mode="a", newline="") as f:
+                # 创建一个 DictWriter 对象，用于将字典数据写入 CSV 文件。
+                # fieldnames=data.keys() 指定了 CSV 文件的列名。
+                # data.keys() 返回的结果将是一个可迭代对象 dict_keys(["Image Name", "Prediction", "Confidence"])
                 writer = csv.DictWriter(f, fieldnames=data.keys())
+                # 如果 CSV 文件不存在，则写入列名（即 CSV 文件的表头）。
                 if not csv_path.is_file():
                     writer.writeheader()
+                # 将 data 中的数据写入 CSV 文件的一行。
                 writer.writerow(data)
 
         # Process predictions
@@ -265,7 +322,8 @@ def run(
 
 def parse_opt():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--weights", nargs="+", type=str, default=ROOT / "yolov5s.pt", help="model path or triton URL")
+    # parser.add_argument("--weights", nargs="+", type=str, default=ROOT / "yolov5s.pt", help="model path or triton URL") # before change
+    parser.add_argument("--weights", nargs="+", type=str, default=ROOT / "runs/train/exp3/weights/best.pt", help="model path or triton URL") # 使用训练后的文件
     parser.add_argument("--source", type=str, default=ROOT / "data/images", help="file/dir/URL/glob/screen/0(webcam)")
     parser.add_argument("--data", type=str, default=ROOT / "data/coco128.yaml", help="(optional) dataset.yaml path")
     parser.add_argument("--imgsz", "--img", "--img-size", nargs="+", type=int, default=[640], help="inference size h,w")
