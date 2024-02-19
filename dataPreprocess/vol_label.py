@@ -2,6 +2,8 @@
 # 使用这个文件之前要先用split_train_val.py文件划分数据集、得到ImageSet里面每个数据集的文件名称
 # 该文件用于获取val/test等数据集的文件绝对路径，如果倒数第二行开了，还可以实现xml到txt的label文件转化
 # 这两个文件都应该在root/../datasets/里面使用，只是放入YoloCode备份一下
+# 使用前记得把文件后缀检查一下.jpg/.png
+
 import xml.etree.ElementTree as ET
 import os
 from os import getcwd
