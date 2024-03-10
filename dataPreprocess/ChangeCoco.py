@@ -26,7 +26,7 @@ def FisrtStep(source_dir, target_dir, kinds):
 '''
 从txt_dir目录下读取所有的txt文件名，找到jpg_dir目录下与其的重名的.jpg文件，复制到target_dir目录下
 '''
-def SecondSteo(txt_dir, jpg_dir, target_dir):
+def SecondStep(txt_dir, jpg_dir, target_dir):
 
     # 获取txt目录下的所有txt文件名（不带扩展名）
     txt_files = [os.path.splitext(file)[0] for file in os.listdir(txt_dir) if file.endswith('.txt')]
@@ -43,15 +43,60 @@ def SecondSteo(txt_dir, jpg_dir, target_dir):
         else:
             print(f"未找到对应的jpg文件：{jpg_file}")
 
-'''在此处调用上面两个步骤，安全又保险'''
-if __name__ == "__main__":
+'''
 
+'''
+def ThreeStep(txt_dir, ans_dir, kinds):
+    # 创建输出目录
+    os.makedirs(ans_dir, exist_ok=True)
+
+    # 获取txt目录下的所有txt文件
+    txt_files = [file for file in os.listdir(txt_dir) if file.endswith('.txt')]
+
+    for txt_file in txt_files:
+        txt_path = os.path.join(txt_dir, txt_file)
+
+        # 读取txt文件内容
+        with open(txt_path, 'r') as file:
+            lines = file.readlines()
+
+        # 筛选保留符合要求的行
+        filtered_lines = [line for line in lines if line.split(' ')[0] in kinds]
+
+        # 写入结果到输出目录下的同名文件
+        ans_path = os.path.join(ans_dir, txt_file)
+        with open(ans_path, 'w') as file:
+            file.writelines(filtered_lines)
+
+        print(f"已处理：{txt_file}")
+
+    print("筛选完成！")
+
+'''在此处调用上面步骤，安全又保险'''
+if __name__ == "__main__":
+    '''
+    0:person
+    39:cup
+    41:cup
+    62:TV
+    63:laptop
+    64:mouse
+    65:remote
+    66:keyboard
+    67:cell phone
+    73:book
+    '''
     source_dir = './COCOtest/'
-    target_dir = './COCOans/labels/'
-    kinds = ['66', '67', '68', '69']
+    target_dir = './COCOans/midAns/'
+    kinds = ['39', '41', '62', '63', '64', '66', '67', '73']
     FisrtStep(source_dir, target_dir, kinds)
 
-    txt_dir = './COCOans/labels/'
+    txt_dir = './COCOans/midAns/'
     jpg_dir = './coco/val2017/images'
     target_dir = './COCOans/images/'
-    SecondSteo(txt_dir, jpg_dir, target_dir)
+    SecondStep(txt_dir, jpg_dir, target_dir)
+
+    txt_dir = './COCOans/midAns/'
+    ans_dir = './COCOans/labels/'
+    kinds = ['39', '41', '62', '63', '64', '66', '67', '73']  # 需要匹配的字符串列表
+    ThreeStep(txt_dir, ans_dir, kinds)
