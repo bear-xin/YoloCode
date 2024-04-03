@@ -104,6 +104,8 @@ image = mp.Image.create_from_file(IMAGE_FILE)
 # STEP 4: Detect faces in the input image.
 detection_result = detector.detect(image)
 
+print(detection_result)
+
 # STEP 5: Process the detection result. In this case, visualize it.
 image_copy = np.copy(image.numpy_view())
 annotated_image = visualize(image_copy, detection_result)
