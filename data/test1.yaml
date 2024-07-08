@@ -1,0 +1,19 @@
+names:
+  0: Coffee cup
+  1: Bottle
+  2: Wine glass
+  3: Mobile phone
+  4: Computer mouse
+  5: Laptop
+  6: Computer monitor
+  7: Computer keyboard
+  8: Headphones
+  9: Human hand
+  10: Book
+  11: Watch
+  12: Pen
+  13: Tablet computer
+  14: Calculator
+path: C:\Users\bearb\Desktop\GraduationProject\datasets\YoloPictureFromCamera3_test
+train: .\images\val\
+val: .\images\val\

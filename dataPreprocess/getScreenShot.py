@@ -17,8 +17,10 @@ def video_demo():
         # 按下's'键时，会保存当前帧为图像文件。
         if cv.waitKey(1) == ord('s'):
             # 将当前视频帧保存为图像文件，文件名为索引加上.jpg后缀，保存在当前目录下的image文件夹中。
-            cv.imwrite("../image/"+str(index)+".jpg",frame)
-            print("../image/"+str(index)+".jpg")
+            # cv.imwrite("../image/"+str(index)+".jpg",frame)
+            # print("../image/"+str(index)+".jpg")
+            cv.imwrite("C:/Users/bearb/Desktop/GraduationProject/image/"+str(index)+".jpg",frame)
+            print("C:/Users/bearb/Desktop/GraduationProject/image/"+str(index)+".jpg")
             index+=1
         # 按下ESC键时，程序退出并关闭窗口。
         if cv.waitKey(1)== 27:
